@@ -631,7 +631,12 @@ public partial class CharlesSchwabBrokerage : BaseWebsocketsBrokerage
                 orderRequest = new StopMarketOrderRequest(duration, legs, smo.StopPrice);
                 break;
             case ComboLimitOrder clo:
-                orderRequest = new NetDebitOrderRequest(sessionType, duration, legs, clo.GroupOrderManager.LimitPrice);
+                orderRequest = clo.GroupOrderManager.Direction switch
+                {
+                    OrderDirection.Buy => new NetDebitOrderRequest(sessionType, duration, legs, clo.GroupOrderManager.LimitPrice),
+                    OrderDirection.Sell => new NetCreditOrderRequest(sessionType, duration, legs, clo.GroupOrderManager.LimitPrice),
+                    _ => throw new NotSupportedException($"{nameof(CharlesSchwabBrokerage)}.{nameof(CreateBrokerageOrderRequest)}: Order direction '{clo.GroupOrderManager.Direction}' is not supported for ComboLimitOrder: {clo}")
+                };
                 break;
             default:
                 throw new NotSupportedException($"{nameof(CharlesSchwabBrokerage)}.{nameof(CreateBrokerageOrderRequest)}: The order type '{orders[0].GetType().Name}' is not supported.");

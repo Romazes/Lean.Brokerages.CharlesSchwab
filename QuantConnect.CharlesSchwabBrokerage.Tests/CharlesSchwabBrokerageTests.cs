@@ -52,8 +52,8 @@ public partial class CharlesSchwabBrokerageTests : BrokerageTests
         {
             var symbol = Symbol.Create("F", SecurityType.Equity, Market.USA);
             yield return new OrderTestMetaData(OrderType.Market, symbol);
-            yield return new OrderTestMetaData(OrderType.Limit, symbol, 12m, 10m);
-            yield return new OrderTestMetaData(OrderType.StopMarket, symbol, 12m, 10m);
+            yield return new OrderTestMetaData(OrderType.Limit, symbol, -12m, -8m);
+            yield return new OrderTestMetaData(OrderType.StopMarket, symbol, 12m, 8m);
 
             var option = Symbol.CreateOption(symbol, symbol.ID.Market, SecurityType.Option.DefaultOptionStyle(), OptionRight.Call, 11m, new DateTime(2024, 11, 29));
             yield return new OrderTestMetaData(OrderType.Market, option);

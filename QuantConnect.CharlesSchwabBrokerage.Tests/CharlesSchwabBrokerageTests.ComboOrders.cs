@@ -1,53 +1,68 @@
-﻿using NUnit.Framework;
-using QuantConnect.Orders;
+﻿/*
+ * QUANTCONNECT.COM - Democratizing Finance, Empowering Individuals.
+ * Lean Algorithmic Trading Engine v2.0. Copyright 2014 QuantConnect Corporation.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
 using System;
-using System.Collections.Generic;
 using System.Linq;
+using NUnit.Framework;
 using System.Threading;
+using QuantConnect.Orders;
+using System.Collections.Generic;
 
 namespace QuantConnect.Brokerages.CharlesSchwab.Tests;
 
 public partial class CharlesSchwabBrokerageTests
 {
-    public record ComboLimitPriceByOptionContracts(decimal ComboLimitPrice, IReadOnlyCollection<OptionContractByQuantity> OptionContracts);
-    public record OptionContractByQuantity(Symbol Symbol, decimal Quantity);
+    //public record ComboLimitPriceByOptionContracts(decimal ComboLimitPrice, IReadOnlyCollection<OptionContractByQuantity> OptionContracts, decimal groupOrderManagerQuantity);
+    //public record OptionContractByQuantity(Symbol Symbol, decimal Quantity);
 
-    private static IEnumerable<ComboLimitPriceByOptionContracts> ComboOrderTestParameters
+    private static IEnumerable<TestCaseData> ComboOrderTestParameters
     {
         get
         {
             var F_Equity = Symbol.Create("F", SecurityType.Equity, Market.USA);
-            var options = new List<OptionContractByQuantity>
+            var options = new[]
             {
-                new (Symbol.CreateOption(F_Equity, Market.USA, SecurityType.Option.DefaultOptionStyle(), OptionRight.Call, 7m, new DateTime(2024, 12, 20)), 1),
-                new (Symbol.CreateOption(F_Equity, Market.USA, SecurityType.Option.DefaultOptionStyle(), OptionRight.Put, 13.5m, new DateTime(2024, 12, 20)), 1),
+                Symbol.CreateOption(F_Equity, Market.USA, SecurityType.Option.DefaultOptionStyle(), OptionRight.Call, 11m, new DateTime(2024, 12, 20)),
+                Symbol.CreateOption(F_Equity, Market.USA, SecurityType.Option.DefaultOptionStyle(), OptionRight.Call, 21.82m, new DateTime(2024, 12, 20))
             };
-            yield return new(0.02m, options);
+            yield return new(0.01m, 1m, options);
+            yield return new(0.01m, -1m, options);
+
 
             var VIX_Index = Symbol.Create("VIX", SecurityType.Index, Market.USA);
-            var indexOptions = new List<OptionContractByQuantity>
+            var indexOptions = new[]
                 {
-                    new (Symbol.CreateOption(VIX_Index, Market.USA, SecurityType.IndexOption.DefaultOptionStyle(), OptionRight.Call, 12m, new DateTime(2024, 12, 18)), 1),
-                    new (Symbol.CreateOption(VIX_Index, Market.USA, SecurityType.IndexOption.DefaultOptionStyle(), OptionRight.Put, 15m, new DateTime(2024, 12, 18)), 1)
+                    Symbol.CreateOption(VIX_Index, Market.USA, SecurityType.IndexOption.DefaultOptionStyle(), OptionRight.Call, 12m, new DateTime(2024, 12, 18)),
+                    Symbol.CreateOption(VIX_Index, Market.USA, SecurityType.IndexOption.DefaultOptionStyle(), OptionRight.Put, 15m, new DateTime(2024, 12, 18))
                 };
 
-            yield return new(0.01m, indexOptions);
-
+            yield return new(0.01m, 1m, indexOptions);
         }
     }
-
 
     [Test]
     public void PlaceComboMarketOrder()
     {
         var F_Equity = Symbol.Create("F", SecurityType.Equity, Market.USA);
-        var options = new List<OptionContractByQuantity>
+        var options = new[]
             {
-                new (Symbol.CreateOption(F_Equity, Market.USA, SecurityType.Option.DefaultOptionStyle(), OptionRight.Call, 11m, new DateTime(2024, 12, 20)), 1),
-                new (Symbol.CreateOption(F_Equity, Market.USA, SecurityType.Option.DefaultOptionStyle(), OptionRight.Put, 10m, new DateTime(2024, 12, 20)), 1),
+                Symbol.CreateOption(F_Equity, Market.USA, SecurityType.Option.DefaultOptionStyle(), OptionRight.Call, 11m, new DateTime(2024, 12, 20)),
+                Symbol.CreateOption(F_Equity, Market.USA, SecurityType.Option.DefaultOptionStyle(), OptionRight.Put, 10m, new DateTime(2024, 12, 20))
             };
 
-        var groupOrderManager = new GroupOrderManager(1, legCount: options.Count, quantity: 2);
+        var groupOrderManager = new GroupOrderManager(1, legCount: options.Length, quantity: 2);
 
         var comboOrders = PlaceComboOrder(
             options,
@@ -60,10 +75,9 @@ public partial class CharlesSchwabBrokerageTests
     }
 
     [TestCaseSource(nameof(ComboOrderTestParameters))]
-    public void PlaceComboLimitOrder(ComboLimitPriceByOptionContracts comboLimitPriceByOptionContracts)
+    public void PlaceComboLimitOrder(decimal limitPrice, decimal groupOrderManagerQuantity, Symbol[] optionContracts)
     {
-        var (limitPrice, optionContracts) = comboLimitPriceByOptionContracts;
-        var groupOrderManager = new GroupOrderManager(1, legCount: optionContracts.Count, quantity: 2, limitPrice);
+        var groupOrderManager = new GroupOrderManager(1, legCount: optionContracts.Length, groupOrderManagerQuantity, limitPrice);
 
         var comboOrders = PlaceComboOrder(
             optionContracts,
@@ -82,12 +96,12 @@ public partial class CharlesSchwabBrokerageTests
     }
 
     private IReadOnlyCollection<T> PlaceComboOrder<T>(
-    IReadOnlyCollection<OptionContractByQuantity> legs,
+    Symbol[] legs,
     decimal? orderLimitPrice,
     Func<Symbol, decimal, decimal?, GroupOrderManager, T> orderType, GroupOrderManager groupOrderManager) where T : ComboOrder
     {
         var comboOrders = legs
-            .Select(optionContract => orderType(optionContract.Symbol, optionContract.Quantity, orderLimitPrice, groupOrderManager))
+            .Select(optionContract => orderType(optionContract, 1m, orderLimitPrice, groupOrderManager))
             .ToList().AsReadOnly();
 
         var manualResetEvent = new ManualResetEvent(false);
