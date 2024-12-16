@@ -1,4 +1,4 @@
-﻿/*
+/*
  * QUANTCONNECT.COM - Democratizing Finance, Empowering Individuals.
  * Lean Algorithmic Trading Engine v2.0. Copyright 2014 QuantConnect Corporation.
  *
@@ -232,8 +232,9 @@ public partial class CharlesSchwabBrokerage : BaseWebsocketsBrokerage
             }
             else
             {
+                var signMultiplier = brokerageOrder.OrderType == CharlesSchwabOrderType.NetDebit ? 1 : -1;
                 var groupQuantity = brokerageOrder.Quantity;
-                var groupOrderManager = new GroupOrderManager(brokerageOrder.OrderLegCollection.Count, groupQuantity, brokerageOrder.Price);
+                var groupOrderManager = new GroupOrderManager(brokerageOrder.OrderLegCollection.Count, groupQuantity * signMultiplier, brokerageOrder.Price * signMultiplier);
 
                 var tempLegOrders = new List<Order>(brokerageOrder.OrderLegCollection.Count);
                 var legId = brokerageOrder.OrderId;
