@@ -36,13 +36,14 @@ public class CharlesSchwabBrokerageSymbolMapperTests
         _symbolMapper = new CharlesSchwabBrokerageSymbolMapper();
     }
 
-    [TestCase("F", AssetType.Equity, "F", null, null, null)]
-    [TestCase("AAPL", AssetType.Equity, "AAPL", null, null, null)]
-    [TestCase("F     241101C00010500", AssetType.Option, "F", 10.5, "2024/11/01", OptionRight.Call, Description = "FORD MTR CO DEL 11/01/2024 $10.5 Call")]
-    [TestCase("GOOGL 250815C00180000", AssetType.Option, "GOOGL", 180, "2025/08/15", OptionRight.Call, Description = "GOOGL 08/15/2025 180.00 C")]
-    public void ReturnsCorrectLeanSymbol(string brokerageSymbol, AssetType assetType, string expectedSymbol, decimal? expectedStrike, DateTime? expectedExpiryDateTime, OptionRight? expectedOptionRight)
+    [TestCase("F", AssetType.Equity, "F", null, null, null, null)]
+    [TestCase("AAPL", AssetType.Equity, "AAPL", null, null, null, null)]
+    [TestCase("F     241101C00010500", AssetType.Option, "F", 10.5, "2024/11/01", OptionRight.Call, "F", Description = "FORD MTR CO DEL 11/01/2024 $10.5 Call")]
+    [TestCase("GOOGL 250815C00180000", AssetType.Option, "GOOGL", 180, "2025/08/15", OptionRight.Call, "GOOGL", Description = "GOOGL 08/15/2025 180.00 C")]
+    [TestCase("SPX   241115C05805000", AssetType.Option, "SPX", 5805, "2024/11/15", OptionRight.Call, "$SPX", Description = "GOOGL 08/15/2025 180.00 C")]
+    public void ReturnsCorrectLeanSymbol(string brokerageSymbol, AssetType assetType, string expectedSymbol, decimal? expectedStrike, DateTime? expectedExpiryDateTime, OptionRight? expectedOptionRight, string optionUnderlyingSymbol)
     {
-        var leanSymbol = _symbolMapper.GetLeanSymbol(brokerageSymbol, assetType.ConvertAssetTypeToSecurityType(), Market.USA);
+        var leanSymbol = _symbolMapper.GetLeanSymbol(brokerageSymbol, assetType.ConvertAssetTypeToSecurityType(optionUnderlyingSymbol), Market.USA);
 
         Assert.IsNotNull(leanSymbol);
 
@@ -52,6 +53,7 @@ public class CharlesSchwabBrokerageSymbolMapperTests
                 Assert.AreEqual(expectedSymbol, leanSymbol.Value);
                 break;
             case SecurityType.Option:
+            case SecurityType.IndexOption:
                 Assert.AreEqual(expectedSymbol, leanSymbol.Underlying.Value);
                 Assert.AreEqual(expectedStrike, leanSymbol.ID.StrikePrice);
                 Assert.AreEqual(expectedExpiryDateTime, leanSymbol.ID.Date);

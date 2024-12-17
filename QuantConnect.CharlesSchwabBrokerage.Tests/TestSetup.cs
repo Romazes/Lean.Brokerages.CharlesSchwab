@@ -21,32 +21,38 @@ using System.Collections;
 using QuantConnect.Logging;
 using QuantConnect.Securities;
 using QuantConnect.Configuration;
+using QuantConnect.Brokerages.CharlesSchwab.Api;
+using System.Net.Http;
 
 namespace QuantConnect.Brokerages.CharlesSchwab.Tests;
 
 [TestFixture]
 public class TestSetup
 {
-    private static CharlesSchwabBrokerage _charlesSchwabBrokerage;
-
     [Test, TestCaseSource(nameof(TestParameters))]
     public void TestSetupCase()
     {
     }
 
-    public static CharlesSchwabBrokerage CreateBrokerage(IOrderProvider orderProvider, ISecurityProvider securityProvider, bool forceCreateBrokerageInstance = false)
+    public static CharlesSchwabBrokerage CreateBrokerage(IOrderProvider orderProvider, ISecurityProvider securityProvider)
     {
-        if (!forceCreateBrokerageInstance && _charlesSchwabBrokerage != null)
-        {
-            return _charlesSchwabBrokerage;
-        }
-
-        var charlesSchwabBrokerage = default(CharlesSchwabBrokerage);
-
         var baseUrl = Config.Get("charles-schwab-api-url");
         var appKey = Config.Get("charles-schwab-app-key");
         var secret = Config.Get("charles-schwab-secret");
         var accountNumber = Config.Get("charles-schwab-account-number");
+
+        if (string.IsNullOrEmpty(appKey) && string.IsNullOrEmpty(secret))
+        {
+            var leanDeployId = Config.Get("deployId");
+            var leanProjectId = Globals.ProjectId;
+
+            if (string.IsNullOrEmpty(leanDeployId) || leanProjectId == default)
+            {
+                throw new ArgumentException("DeployId or ProjectId cannot be empty or null. Please ensure these values are correctly set in the configuration file.");
+            }
+
+            return new CharlesSchwabBrokerage(baseUrl, accountNumber, leanDeployId, leanProjectId, orderProvider, securityProvider);
+        }
 
         var refreshToken = Config.Get("charles-schwab-refresh-token");
         if (string.IsNullOrEmpty(refreshToken))
@@ -59,13 +65,9 @@ public class TestSetup
                 throw new ArgumentException("RedirectUrl or AuthorizationCode cannot be empty or null. Please ensure these values are correctly set in the configuration file.");
             }
 
-            charlesSchwabBrokerage = new CharlesSchwabBrokerage(baseUrl, appKey, secret, accountNumber, redirectUrl, authorizationCode, string.Empty, orderProvider, securityProvider);
+            return new CharlesSchwabBrokerage(baseUrl, appKey, secret, accountNumber, redirectUrl, authorizationCode, string.Empty, orderProvider, securityProvider);
         }
-        charlesSchwabBrokerage = new CharlesSchwabBrokerage(baseUrl, appKey, secret, accountNumber, string.Empty, string.Empty, refreshToken, orderProvider, securityProvider);
-
-        _charlesSchwabBrokerage = charlesSchwabBrokerage;
-
-        return charlesSchwabBrokerage;
+        return new CharlesSchwabBrokerage(baseUrl, appKey, secret, accountNumber, string.Empty, string.Empty, refreshToken, orderProvider, securityProvider);
     }
 
     public static void ReloadConfiguration()

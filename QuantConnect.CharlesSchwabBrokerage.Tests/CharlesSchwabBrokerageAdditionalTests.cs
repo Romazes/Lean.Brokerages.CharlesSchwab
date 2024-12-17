@@ -13,26 +13,25 @@
  * limitations under the License.
 */
 
+using System;
 using System.Linq;
 using NUnit.Framework;
+using System.Net.Http;
+using System.Threading;
+using QuantConnect.Api;
 using QuantConnect.Util;
 using QuantConnect.Tests;
+using System.Threading.Tasks;
 using QuantConnect.Interfaces;
+using QuantConnect.Configuration;
 using System.Collections.Generic;
+using QuantConnect.Brokerages.CharlesSchwab.Api;
 
 namespace QuantConnect.Brokerages.CharlesSchwab.Tests;
 
 [TestFixture]
 public class CharlesSchwabBrokerageAdditionalTests
 {
-    private IDataQueueUniverseProvider _dataQueueUniverseProvider;
-
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-        _dataQueueUniverseProvider = TestSetup.CreateBrokerage(null, null);
-    }
-
     [Test]
     public void ParameterlessConstructorComposerUsage()
     {
@@ -56,7 +55,9 @@ public class CharlesSchwabBrokerageAdditionalTests
     {
         var option = Symbol.CreateCanonicalOption(symbol);
 
-        var optionChain = _dataQueueUniverseProvider.LookupSymbols(option, false).ToList();
+        var dataQueueUniverseProvider = TestSetup.CreateBrokerage(null, null);
+
+        var optionChain = dataQueueUniverseProvider.LookupSymbols(option, false).ToList();
 
         Assert.IsNotNull(optionChain);
 
@@ -70,5 +71,27 @@ public class CharlesSchwabBrokerageAdditionalTests
             Assert.Greater(optionChain.Count, 0);
             Assert.That(optionChain.Distinct().ToList().Count, Is.EqualTo(optionChain.Count));
         }
+
+        dataQueueUniverseProvider.DisposeSafely();
+    }
+
+    [Test]
+    public async Task TestSendSignInQuantConnectAsync()
+    {
+        var cancellationTokenSource = new CancellationTokenSource();
+        var accountNumber = Config.Get("charles-schwab-account-number");
+        var leanApiClient = new ApiConnection(Globals.UserId, Globals.UserToken);
+
+        if (!leanApiClient.Connected)
+        {
+            throw new ArgumentException("Invalid api user id or token, cannot authenticate subscription.");
+        }
+
+        var leanTokenHandler = new CharlesSchwabLeanTokenHandler(new HttpClientHandler(), leanApiClient, "CharlesSchwab", "L-test", Globals.ProjectId, accountNumber);
+
+        var result = await leanTokenHandler.GetAccessToken(cancellationTokenSource.Token);
+
+        Assert.IsNotNull(result);
+        Assert.IsNotEmpty(result);
     }
 }

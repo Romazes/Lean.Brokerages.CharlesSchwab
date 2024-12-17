@@ -87,10 +87,16 @@ namespace QuantConnect.Brokerages.CharlesSchwab
                 throw new ArgumentException(string.Join(Environment.NewLine, errors));
             }
 
+            var refreshToken = Read<string>(job.BrokerageData, "charles-schwab-refresh-token", errors);
             var cs = default(CharlesSchwabBrokerage);
 
-            var refreshToken = Read<string>(job.BrokerageData, "charles-schwab-refresh-token", errors);
-            if (string.IsNullOrEmpty(refreshToken))
+            // CASE 1: using LEAN internal request to access token of Charles Schwab
+            if (!string.IsNullOrEmpty(job.DeployId) && job.ProjectId != default)
+            {
+                cs = new CharlesSchwabBrokerage(baseUrl, accountNumber, job.DeployId, job.ProjectId, algorithm);
+            }
+            // CASE 2: use refresh token
+            else if (string.IsNullOrEmpty(refreshToken))
             {
                 var redirectUrl = Read<string>(job.BrokerageData, "charles-schwab-redirect-url", errors);
                 var authorizationCode = Read<string>(job.BrokerageData, "charles-schwab-authorization-code-from-url", errors);
@@ -103,6 +109,7 @@ namespace QuantConnect.Brokerages.CharlesSchwab
                 // Case 1: authentication with using redirectUrl, authorizationCode
                 cs = new CharlesSchwabBrokerage(baseUrl, appKey, secret, accountNumber, redirectUrl, authorizationCode, refreshToken: string.Empty, algorithm);
             }
+            // CASE 3: use authorization code from URL
             else
             {
                 cs = new CharlesSchwabBrokerage(baseUrl, appKey, secret, accountNumber, redirectUrl: string.Empty, authorizationCodeFromUrl: string.Empty, refreshToken, algorithm);

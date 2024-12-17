@@ -1,4 +1,4 @@
-﻿/*
+/*
  * QUANTCONNECT.COM - Democratizing Finance, Empowering Individuals.
  * Lean Algorithmic Trading Engine v2.0. Copyright 2014 QuantConnect Corporation.
  *
@@ -20,6 +20,8 @@ using System.Text;
 using System.Net.Http;
 using Newtonsoft.Json;
 using System.Threading;
+using QuantConnect.Api;
+using QuantConnect.Logging;
 using System.Threading.Tasks;
 using System.IO.Compression;
 using System.Collections.Generic;
@@ -58,7 +60,7 @@ public class CharlesSchwabApiClient
     /// <summary>
     /// Handler responsible for refreshing OAuth tokens using Charles Schwab's API.
     /// </summary>
-    private readonly CharlesSchwabTokenRefreshHandler _tokenRefreshHandler;
+    private readonly ITokenRefreshHandler _tokenRefreshHandler;
 
     /// <summary>
     /// Provides JSON serializer settings for order requests, ensuring that DateTime values are handled in UTC format.
@@ -70,24 +72,81 @@ public class CharlesSchwabApiClient
     };
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CharlesSchwabApiClient"/> class.
+    /// Initializes a new instance of the <see cref="CharlesSchwabApiClient"/> class using direct OAuth credentials.
     /// </summary>
     /// <param name="baseUrl">The base URL of the Charles Schwab API.</param>
-    /// <param name="appKey">The application key for authentication with the API.</param>
-    /// <param name="secret">The client secret for authentication with the API.</param>
+    /// <param name="appKey">The application key for authenticating with the API.</param>
+    /// <param name="secret">The client secret for authenticating with the API.</param>
     /// <param name="accountNumber">The account number for the Charles Schwab account.</param>
     /// <param name="redirectUri">The redirect URI used during the OAuth flow.</param>
     /// <param name="authorizationCodeFromUrl">The authorization code obtained from the authorization URL during the OAuth flow.</param>
-    /// <param name="refreshToken">The refresh token used for token renewal when the access token expires.</param>
-    /// <param name="httpClientHandler">An optional <see cref="HttpClientHandler"/> that can be provided for advanced configuration of the <see cref="HttpClient"/>. If null, a default handler is used.</param>
-    public CharlesSchwabApiClient(string baseUrl, string appKey, string secret, string accountNumber, string redirectUri, string authorizationCodeFromUrl, string refreshToken,
-       HttpClientHandler httpClientHandler = null)
+    /// <param name="refreshToken">The refresh token used for renewing the access token when it expires.</param>
+    /// <param name="httpClientHandler">An optional <see cref="HttpClientHandler"/> for advanced HTTP client configuration. If null, a default handler is used.</param>
+    public CharlesSchwabApiClient(
+        string baseUrl,
+        string appKey,
+        string secret,
+        string accountNumber,
+        string redirectUri,
+        string authorizationCodeFromUrl,
+        string refreshToken,
+        HttpClientHandler httpClientHandler = null)
+        : this(
+              baseUrl,
+              accountNumber,
+              new CharlesSchwabTokenRefreshHandler(
+                  httpClientHandler ?? new HttpClientHandler(),
+                  baseUrl,
+                  appKey,
+                  secret,
+                  redirectUri,
+                  authorizationCodeFromUrl,
+                  refreshToken))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CharlesSchwabApiClient"/> class using an API connection from Lean and project details.
+    /// </summary>
+    /// <param name="leanApiClient">The API connection from Lean for authentication and communication with Charles Schwab.</param>
+    /// <param name="brokerageName">The name of the brokerage account.</param>
+    /// <param name="baseUrl">The base URL of the Charles Schwab API.</param>
+    /// <param name="accountNumber">The account number for the Charles Schwab account.</param>
+    /// <param name="deployId">The deployment identifier for the Lean project.</param>
+    /// <param name="projectId">The project identifier in Lean.</param>
+    /// <param name="httpClientHandler">An optional <see cref="HttpClientHandler"/> for advanced HTTP client configuration. If null, a default handler is used.</param>
+    public CharlesSchwabApiClient(
+        ApiConnection leanApiClient,
+        string brokerageName,
+        string baseUrl,
+        string accountNumber,
+        string deployId,
+        int projectId)
+        : this(
+              baseUrl,
+              accountNumber,
+              new CharlesSchwabLeanTokenHandler(
+                  new HttpClientHandler(),
+                  leanApiClient,
+                  brokerageName,
+                  deployId,
+                  projectId,
+                  accountNumber))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CharlesSchwabApiClient"/> class with a specific token handler.
+    /// </summary>
+    /// <param name="baseUrl">The base URL of the Charles Schwab API.</param>
+    /// <param name="accountNumber">The account number for the Charles Schwab account.</param>
+    /// <param name="tokenHandler">The token handler used to manage authentication tokens.</param>
+    private CharlesSchwabApiClient(string baseUrl, string accountNumber, TokenHandler tokenHandler)
     {
         _traderBaseUrl = baseUrl + "/trader/v1";
         _marketDataBaseUrl = baseUrl + "/marketdata/v1";
-        var httpClient = httpClientHandler ?? new HttpClientHandler();
-        _tokenRefreshHandler = new CharlesSchwabTokenRefreshHandler(httpClient, baseUrl, appKey, secret, redirectUri, authorizationCodeFromUrl, refreshToken);
-        _httpClient = new(_tokenRefreshHandler);
+        _httpClient = new HttpClient(tokenHandler);
+        _tokenRefreshHandler = tokenHandler;
         _accountHashNumber = GetAccountNumber(accountNumber).SynchronouslyAwaitTaskResult().HashValue;
     }
 

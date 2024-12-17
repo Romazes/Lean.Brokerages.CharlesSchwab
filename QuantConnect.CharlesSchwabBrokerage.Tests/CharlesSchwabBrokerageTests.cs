@@ -34,7 +34,7 @@ public partial class CharlesSchwabBrokerageTests : BrokerageTests
 
     protected override IBrokerage CreateBrokerage(IOrderProvider orderProvider, ISecurityProvider securityProvider)
     {
-        return TestSetup.CreateBrokerage(orderProvider, securityProvider, forceCreateBrokerageInstance: true);
+        return TestSetup.CreateBrokerage(orderProvider, securityProvider);
     }
     protected override bool IsAsync()
     {

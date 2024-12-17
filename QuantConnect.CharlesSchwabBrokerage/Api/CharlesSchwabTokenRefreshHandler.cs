@@ -1,4 +1,4 @@
-/*
+﻿/*
  * QUANTCONNECT.COM - Democratizing Finance, Empowering Individuals.
  * Lean Algorithmic Trading Engine v2.0. Copyright 2014 QuantConnect Corporation.
  *
@@ -14,7 +14,6 @@
 */
 
 using System;
-using System.Net;
 using System.Text;
 using System.Net.Http;
 using Newtonsoft.Json;
@@ -26,18 +25,8 @@ using QuantConnect.Brokerages.CharlesSchwab.Models;
 
 namespace QuantConnect.Brokerages.CharlesSchwab.Api;
 
-public class CharlesSchwabTokenRefreshHandler : DelegatingHandler
+public class CharlesSchwabTokenRefreshHandler : TokenHandler
 {
-    /// <summary>
-    /// Represents the maximum number of retry attempts for an authenticated request.
-    /// </summary>
-    private int _maxRetryCount = 3;
-
-    /// <summary>
-    /// Represents the time interval between retry attempts for an authenticated request.
-    /// </summary>
-    private TimeSpan _retryInterval = TimeSpan.FromSeconds(2);
-
     /// <summary>
     /// The base URL used for constructing API endpoints.
     /// </summary>
@@ -102,45 +91,6 @@ public class CharlesSchwabTokenRefreshHandler : DelegatingHandler
     }
 
     /// <summary>
-    /// Sends an HTTP request with automatic retries and token refresh on authorization failure.
-    /// </summary>
-    /// <param name="request">The HTTP request message to send.</param>
-    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
-    /// <returns>The HTTP response message.</returns>
-    protected async override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        var response = default(HttpResponseMessage);
-        var accessToken = await GetAccessToken(cancellationToken);
-        for (var retryCount = 0; retryCount < _maxRetryCount; retryCount++)
-        {
-            request.Headers.Authorization = new AuthenticationHeaderValue(_accessTokenMetaData.TokenType, accessToken);
-
-            response = await base.SendAsync(request, cancellationToken);
-
-            if (response.IsSuccessStatusCode)
-            {
-                break;
-            }
-            else if (response.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                accessToken = await GetAccessToken(cancellationToken);
-            }
-            else
-            {
-                break;
-            }
-
-            // Wait for retry interval or cancellation request
-            if (cancellationToken.WaitHandle.WaitOne(_retryInterval))
-            {
-                break;
-            }
-        }
-
-        return response;
-    }
-
-    /// <summary>
     /// Generates the authorization URL for initiating the OAuth 2.0 authorization process.
     /// </summary>
     /// <returns>A string representing the full authorization URL to be used for OAuth 2.0 authorization.</returns>
@@ -156,7 +106,7 @@ public class CharlesSchwabTokenRefreshHandler : DelegatingHandler
     /// <returns>
     /// A <see cref="string"/> representing the access token.
     /// </returns>
-    internal async Task<string> GetAccessToken(CancellationToken cancellationToken)
+    public override async Task<string> GetAccessToken(CancellationToken cancellationToken)
     {
         if (_accessTokenMetaData == null && string.IsNullOrEmpty(_refreshToken))
         {
@@ -229,9 +179,9 @@ public class CharlesSchwabTokenRefreshHandler : DelegatingHandler
             requestMessage.Headers.Add("Authorization", $"Basic {_encodedClientCredentials}");
             requestMessage.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
 
-            var response = await base.SendAsync(requestMessage, cancellationToken);
+            var response = Send(requestMessage, cancellationToken);
 
-            var jsonContent = await response.Content.ReadAsStringAsync();
+            var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
 
             try
             {
