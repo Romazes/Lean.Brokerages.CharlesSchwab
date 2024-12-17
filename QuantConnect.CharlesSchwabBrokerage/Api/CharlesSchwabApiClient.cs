@@ -81,7 +81,6 @@ public class CharlesSchwabApiClient
     /// <param name="redirectUri">The redirect URI used during the OAuth flow.</param>
     /// <param name="authorizationCodeFromUrl">The authorization code obtained from the authorization URL during the OAuth flow.</param>
     /// <param name="refreshToken">The refresh token used for renewing the access token when it expires.</param>
-    /// <param name="httpClientHandler">An optional <see cref="HttpClientHandler"/> for advanced HTTP client configuration. If null, a default handler is used.</param>
     public CharlesSchwabApiClient(
         string baseUrl,
         string appKey,
@@ -89,13 +88,12 @@ public class CharlesSchwabApiClient
         string accountNumber,
         string redirectUri,
         string authorizationCodeFromUrl,
-        string refreshToken,
-        HttpClientHandler httpClientHandler = null)
+        string refreshToken)
         : this(
               baseUrl,
               accountNumber,
               new CharlesSchwabTokenRefreshHandler(
-                  httpClientHandler ?? new HttpClientHandler(),
+                  new HttpClientHandler(),
                   baseUrl,
                   appKey,
                   secret,
@@ -114,7 +112,6 @@ public class CharlesSchwabApiClient
     /// <param name="accountNumber">The account number for the Charles Schwab account.</param>
     /// <param name="deployId">The deployment identifier for the Lean project.</param>
     /// <param name="projectId">The project identifier in Lean.</param>
-    /// <param name="httpClientHandler">An optional <see cref="HttpClientHandler"/> for advanced HTTP client configuration. If null, a default handler is used.</param>
     public CharlesSchwabApiClient(
         ApiConnection leanApiClient,
         string brokerageName,
