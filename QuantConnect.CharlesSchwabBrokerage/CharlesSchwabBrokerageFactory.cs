@@ -44,10 +44,6 @@ namespace QuantConnect.Brokerages.CharlesSchwab
             { "charles-schwab-secret", Config.Get("charles-schwab-secret") },
             // Users can have multiple different accounts
             { "charles-schwab-account-number", Config.Get("charles-schwab-account-number") },
-
-            // USE CASE 1 (normal): lean CLI & live clous wizard
-            {  "charles-schwab-refresh-token", Config.Get("charles-schwab-refresh-token") },
-
             // USE CASE 2 (developing): Only if refresh token is not provided
             { "charles-schwab-authorization-code-from-url", Config.Get("charles-schwab-authorization-code-from-url") },
             { "charles-schwab-redirect-url", Config.Get("charles-schwab-redirect-url") },
@@ -77,8 +73,6 @@ namespace QuantConnect.Brokerages.CharlesSchwab
             var errors = new List<string>();
 
             var baseUrl = Read<string>(job.BrokerageData, "charles-schwab-api-url", errors);
-            var appKey = Read<string>(job.BrokerageData, "charles-schwab-app-key", errors);
-            var secret = Read<string>(job.BrokerageData, "charles-schwab-secret", errors);
             var accountNumber = Read<string>(job.BrokerageData, "charles-schwab-account-number", errors);
 
             if (errors.Count != 0)
@@ -87,16 +81,16 @@ namespace QuantConnect.Brokerages.CharlesSchwab
                 throw new ArgumentException(string.Join(Environment.NewLine, errors));
             }
 
-            var refreshToken = Read<string>(job.BrokerageData, "charles-schwab-refresh-token", errors);
+            var appKey = Read<string>(job.BrokerageData, "charles-schwab-app-key", errors);
+            var secret = Read<string>(job.BrokerageData, "charles-schwab-secret", errors);
             var cs = default(CharlesSchwabBrokerage);
-
             // CASE 1: using LEAN internal request to access token of Charles Schwab
-            if (!string.IsNullOrEmpty(job.DeployId) && job.ProjectId != default)
+            if (new[] { appKey, secret }.All(string.IsNullOrEmpty))
             {
                 cs = new CharlesSchwabBrokerage(baseUrl, accountNumber, job.DeployId, job.ProjectId, algorithm);
             }
-            // CASE 2: use refresh token
-            else if (string.IsNullOrEmpty(refreshToken))
+            // CASE 2: authentication with using redirectUrl, authorizationCode
+            else
             {
                 var redirectUrl = Read<string>(job.BrokerageData, "charles-schwab-redirect-url", errors);
                 var authorizationCode = Read<string>(job.BrokerageData, "charles-schwab-authorization-code-from-url", errors);
@@ -106,13 +100,7 @@ namespace QuantConnect.Brokerages.CharlesSchwab
                     throw new ArgumentException("RedirectUrl or AuthorizationCode cannot be empty or null. Please ensure these values are correctly set in the configuration file.");
                 }
 
-                // Case 1: authentication with using redirectUrl, authorizationCode
                 cs = new CharlesSchwabBrokerage(baseUrl, appKey, secret, accountNumber, redirectUrl, authorizationCode, refreshToken: string.Empty, algorithm);
-            }
-            // CASE 3: use authorization code from URL
-            else
-            {
-                cs = new CharlesSchwabBrokerage(baseUrl, appKey, secret, accountNumber, redirectUrl: string.Empty, authorizationCodeFromUrl: string.Empty, refreshToken, algorithm);
             }
 
             Composer.Instance.AddPart<IDataQueueHandler>(cs);

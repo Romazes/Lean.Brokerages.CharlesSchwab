@@ -215,7 +215,7 @@ public partial class CharlesSchwabBrokerage : BaseWebsocketsBrokerage
         ValidateSubscription();
 
         _symbolMapper = new CharlesSchwabBrokerageSymbolMapper();
-        if (!string.IsNullOrEmpty(leanDeployId) && leanProjectId != 0)
+        if (new[] { appKey, secret }.All(string.IsNullOrEmpty))
         {
             _charlesSchwabApiClient = new CharlesSchwabApiClient(_leanApiClient, Name, baseUrl, accountNumber, leanDeployId, leanProjectId);
         }
