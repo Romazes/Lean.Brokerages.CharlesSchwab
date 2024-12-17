@@ -6,5 +6,10 @@
   "charles-schwab-account-number": "",
   "charles-schwab-authorization-code-from-url": "",
   "charles-schwab-refresh-token": "",
-  "charles-schwab-redirect-url": "https://127.0.0.1"
+  "charles-schwab-redirect-url": "https://127.0.0.1",
+  "job-user-id": "",
+  "api-access-token": "",
+  "job-organization-id": "",
+  "project-id": 0,
+  "deployId": ""
 }

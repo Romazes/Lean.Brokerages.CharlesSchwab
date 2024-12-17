@@ -73,12 +73,14 @@ public partial class CharlesSchwabBrokerage : IDataQueueHandler
     {
         Initialize(
             baseUrl: job.BrokerageData["charles-schwab-api-url"],
-            appKey: job.BrokerageData["charles-schwab-app-key"],
-            secret: job.BrokerageData["charles-schwab-secret"],
+            appKey: job.BrokerageData.TryGetValue("charles-schwab-app-key", out var appKey) ? appKey : string.Empty,
+            secret: job.BrokerageData.TryGetValue("charles-schwab-secret", out var secret) ? secret : string.Empty,
             accountNumber: job.BrokerageData.TryGetValue("charles-schwab-account-number", out var accountNumber) ? accountNumber : string.Empty,
             redirectUrl: job.BrokerageData.TryGetValue("charles-schwab-redirect-url", out var redirectUrl) ? redirectUrl : string.Empty,
             authorizationCodeFromUrl: job.BrokerageData.TryGetValue("charles-schwab-authorization-code-from-url", out var authorizationCode) ? authorizationCode : string.Empty,
             refreshToken: job.BrokerageData.TryGetValue("charles-schwab-refresh-token", out var refreshToken) ? refreshToken : string.Empty,
+            leanDeployId: job.DeployId,
+            leanProjectId: job.ProjectId,
             orderProvider: null,
             securityProvider: null
             );

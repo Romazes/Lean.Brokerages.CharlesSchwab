@@ -1,4 +1,4 @@
-/*
+﻿/*
  * QUANTCONNECT.COM - Democratizing Finance, Empowering Individuals.
  * Lean Algorithmic Trading Engine v2.0. Copyright 2014 QuantConnect Corporation.
  *
@@ -108,6 +108,11 @@ public partial class CharlesSchwabBrokerage : BaseWebsocketsBrokerage
     private ISecurityProvider _securityProvider;
 
     /// <summary>
+    /// Represents the Lean API connection.
+    /// </summary>
+    private static ApiConnection _leanApiClient;
+
+    /// <summary>
     /// Parameterless constructor for brokerage
     /// </summary>
     public CharlesSchwabBrokerage() : base(MarketName)
@@ -145,7 +150,33 @@ public partial class CharlesSchwabBrokerage : BaseWebsocketsBrokerage
     public CharlesSchwabBrokerage(string baseUrl, string appKey, string secret, string accountNumber, string redirectUrl, string authorizationCodeFromUrl,
         string refreshToken, IOrderProvider orderProvider, ISecurityProvider securityProvider) : base(MarketName)
     {
-        Initialize(baseUrl, appKey, secret, accountNumber, redirectUrl, authorizationCodeFromUrl, refreshToken, orderProvider, securityProvider);
+        Initialize(baseUrl, appKey, secret, accountNumber, redirectUrl, authorizationCodeFromUrl, refreshToken, string.Empty, default, orderProvider, securityProvider);
+    }
+
+    /// <summary>
+    /// Constructor for the Charles Schwab brokerage with Lean deployment and project identifiers.
+    /// </summary>
+    /// <param name="baseUrl">The URL to connect to the brokerage environment.</param>
+    /// <param name="accountNumber">The specific user account number.</param>
+    /// <param name="leanDeployId">The Lean deployment identifier.</param>
+    /// <param name="leanProjectId">The Lean project identifier.</param>
+    /// <param name="algorithm">The algorithm instance is required to retrieve account type.</param>
+    public CharlesSchwabBrokerage(string baseUrl, string accountNumber, string leanDeployId, int leanProjectId, IAlgorithm algorithm)
+        : this(baseUrl, accountNumber, leanDeployId, leanProjectId, algorithm?.Portfolio?.Transactions, algorithm?.Portfolio)
+    { }
+
+    /// <summary>
+    /// Constructor for the Charles Schwab brokerage with Lean deployment and project identifiers.
+    /// </summary>
+    /// <param name="baseUrl">The URL to connect to the brokerage environment.</param>
+    /// <param name="accountNumber">The specific user account number.</param>
+    /// <param name="leanDeployId">The Lean deployment identifier.</param>
+    /// <param name="leanProjectId">The Lean project identifier.</param>
+    /// <param name="orderProvider">The order provider.</param>
+    /// <param name="securityProvider">The type capable of fetching the holdings for the specified symbol.</param>
+    public CharlesSchwabBrokerage(string baseUrl, string accountNumber, string leanDeployId, int leanProjectId, IOrderProvider orderProvider, ISecurityProvider securityProvider) : base(MarketName)
+    {
+        Initialize(baseUrl, string.Empty, string.Empty, accountNumber, string.Empty, string.Empty, string.Empty, leanDeployId, leanProjectId, orderProvider, securityProvider);
     }
 
     /// <summary>
@@ -158,10 +189,12 @@ public partial class CharlesSchwabBrokerage : BaseWebsocketsBrokerage
     /// <param name="redirectUrl">The redirect URL to generate great link to get right "authorizationCodeFromUrl"</param>
     /// <param name="authorizationCodeFromUrl">The authorization code obtained from the URL.</param>
     /// <param name="refreshToken">The refresh token used to obtain new access tokens for authentication.</param>
+    /// <param name="leanDeployId">The Lean deployment identifier.</param>
+    /// <param name="leanProjectId">The Lean project identifier.</param>
     /// <param name="orderProvider">The order provider.</param>
     /// <param name="securityProvider">The type capable of fetching the holdings for the specified symbol.</param>
     protected void Initialize(string baseUrl, string appKey, string secret, string accountNumber, string redirectUrl, string authorizationCodeFromUrl,
-        string refreshToken, IOrderProvider orderProvider, ISecurityProvider securityProvider)
+        string refreshToken, string leanDeployId, int leanProjectId, IOrderProvider orderProvider, ISecurityProvider securityProvider)
     {
         if (_isInitialized)
         {
@@ -182,7 +215,14 @@ public partial class CharlesSchwabBrokerage : BaseWebsocketsBrokerage
         ValidateSubscription();
 
         _symbolMapper = new CharlesSchwabBrokerageSymbolMapper();
-        _charlesSchwabApiClient = new CharlesSchwabApiClient(baseUrl, appKey, secret, accountNumber, redirectUrl, authorizationCodeFromUrl, refreshToken);
+        if (!string.IsNullOrEmpty(leanDeployId) && leanProjectId != 0)
+        {
+            _charlesSchwabApiClient = new CharlesSchwabApiClient(_leanApiClient, Name, baseUrl, accountNumber, leanDeployId, leanProjectId);
+        }
+        else
+        {
+            _charlesSchwabApiClient = new CharlesSchwabApiClient(baseUrl, appKey, secret, accountNumber, redirectUrl, authorizationCodeFromUrl, refreshToken);
+        }
 
         WebSocket = new CharlesSchwabWebSocketClientWrapper(_charlesSchwabApiClient, OnOrderUpdate, OnLevelOneMarketDataUpdate, OnReSubscriptionProcess, HandleWebSocketError);
         _messageHandler = new BrokerageConcurrentMessageHandler<AccountContent>(OnUserMessage);
@@ -644,8 +684,8 @@ public partial class CharlesSchwabBrokerage : BaseWebsocketsBrokerage
             var token = Globals.UserToken;
             var organizationId = Globals.OrganizationID;
             // Verify we can authenticate with this user and token
-            var api = new ApiConnection(userId, token);
-            if (!api.Connected)
+            _leanApiClient = new ApiConnection(userId, token);
+            if (!_leanApiClient.Connected)
             {
                 throw new ArgumentException("Invalid api user id or token, cannot authenticate subscription.");
             }
@@ -694,7 +734,7 @@ public partial class CharlesSchwabBrokerage : BaseWebsocketsBrokerage
             }
             var request = new RestRequest("modules/license/read", Method.POST) { RequestFormat = DataFormat.Json };
             request.AddParameter("application/json", JsonConvert.SerializeObject(information), ParameterType.RequestBody);
-            api.TryRequest(request, out ModulesReadLicenseRead result);
+            _leanApiClient.TryRequest(request, out ModulesReadLicenseRead result);
             if (!result.Success)
             {
                 throw new InvalidOperationException($"Request for subscriptions from web failed, Response Errors : {string.Join(',', result.Errors)}");

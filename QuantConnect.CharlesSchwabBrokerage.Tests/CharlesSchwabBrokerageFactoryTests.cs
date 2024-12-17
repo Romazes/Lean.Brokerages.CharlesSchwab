@@ -25,9 +25,9 @@ namespace QuantConnect.Brokerages.CharlesSchwab.Tests;
 [TestFixture]
 public class CharlesSchwabBrokerageFactoryTests
 {
-    [TestCase("", "http://localhost", "123", false, "error\":\"invalid_request\"}\".")]
-    [TestCase("123", "", "", false, "invalid_client - refresh token invalid.")]
-    [TestCase("123", "http://localhost", "123", false, "invalid_client - refresh token invalid.")]
+    [TestCase("", "http://localhost", "123", false, "invalid_client - Unauthorized.")]
+    [TestCase("123", "", "", false, "invalid_client - Unauthorized.")]
+    [TestCase("123", "http://localhost", "123", false, "invalid_client - Unauthorized.")]
     [TestCase("", "http://localhost", "", true, "")]
     [TestCase("", "", "123", true, "")]
     [TestCase("", "", "", true, "")]
