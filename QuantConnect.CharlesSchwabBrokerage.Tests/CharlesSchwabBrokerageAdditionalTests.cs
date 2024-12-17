@@ -76,6 +76,24 @@ public class CharlesSchwabBrokerageAdditionalTests
     }
 
     [Test]
+    public void GetAuthorizationUrl()
+    {
+        var baseUrl = Config.Get("charles-schwab-api-url");
+        var redirectUrl = Config.Get("charles-schwab-redirect-url");
+
+        var appKey = Config.Get("charles-schwab-app-key");
+
+        var tokenRefreshHandler = new CharlesSchwabTokenRefreshHandler(new HttpClientHandler(), baseUrl, appKey, string.Empty, redirectUrl, string.Empty, string.Empty);
+
+        var authorizationUrl = tokenRefreshHandler.GetAuthorizationUrl();
+
+        Assert.IsNotNull(authorizationUrl);
+        Assert.IsNotEmpty(authorizationUrl);
+
+        Assert.Pass($"Charles Schwab, Authorization URL: {authorizationUrl}");
+    }
+
+    [Test]
     public async Task TestSendSignInQuantConnectAsync()
     {
         var cancellationTokenSource = new CancellationTokenSource();
